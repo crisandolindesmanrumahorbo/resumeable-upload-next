@@ -1,95 +1,88 @@
-import Image from 'next/image'
-import styles from './page.module.css'
+'use client';
+import React, { useState } from 'react';
+import * as tus from 'tus-js-client';
 
 export default function Home() {
+  const [upload, setUpload] = useState();
+  const [pause, setPause] = useState(false);
+
+  const handleChange = eventObject => {
+    const file = eventObject.target.files[0]
+
+    // Create a new tus upload
+    const initiateUpload = new tus.Upload(file, {
+      // Endpoint is the upload creation URL from your tus server
+      endpoint: 'http://localhost:8080/files/upload',
+      chunkSize: 100000,
+      // Retry delays will enable tus-js-client to automatically retry on errors
+      retryDelays: [0, 3000, 5000],
+      // Attach additional meta data about the file for the server
+      metadata: {
+        filename: file.name,
+        filetype: file.type,
+      },
+      // Callback for errors which cannot be fixed using retries
+      onError: function (error) {
+        console.log('Failed because: ' + error)
+      },
+      // Callback for reporting upload progress
+      onProgress: function (bytesUploaded, bytesTotal) {
+        var percentage = ((bytesUploaded / bytesTotal) * 100).toFixed(2)
+        console.log(bytesUploaded, bytesTotal, percentage + '%')
+      },
+      // Callback for once the upload is completed
+      onSuccess: function () {
+        console.log('Download %s from %s', initiateUpload.file.name, initiateUpload.url)
+      },
+    })
+
+    initiateUpload.findPreviousUploads().then(function (previousUploads) {
+      // Found previous uploads so we select the first one.
+      if (previousUploads.length) {
+        initiateUpload.resumeFromPreviousUpload(previousUploads[0])
+      }
+
+      // Start the upload
+      initiateUpload.start()
+    });
+
+    setUpload(initiateUpload);
+  }
+
+  // Check if there are any previous uploads to continue.
+
+
+  const handlePause = () => {
+    upload.abort();
+    setPause(true);
+  };
+
+  const handleResume = () => {
+    upload.findPreviousUploads().then(function (previousUploads) {
+      // Found previous uploads so we select the first one.
+      if (previousUploads.length) {
+        upload.resumeFromPreviousUpload(previousUploads[0])
+      }
+
+      // Start the upload
+      upload.start()
+    });
+    setPause(false);
+  }
+
+  const handleTerminate = async () => {
+    console.log('url', upload.url);
+    upload.abort();
+    await tus.Upload.terminate(upload.url);
+  }
+
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>src/app/page.js</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
-
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore the Next.js 13 playground.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+    <>
+      <div>upload test</div>
+      <input onChange={handleChange} type='file' />
+      {upload && <button type='submit' onClick={handlePause}>pause</button>}
+      {pause && <button type='submit' onClick={handleResume}>resume</button>}
+      {upload && <button type='submit' onClick={handleTerminate}>terminate</button>}
+    </>
   )
 }
