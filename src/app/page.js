@@ -13,13 +13,15 @@ export default function Home() {
     const initiateUpload = new tus.Upload(file, {
       // Endpoint is the upload creation URL from your tus server
       endpoint: 'http://localhost:8080/files/upload',
+      // endpoint: 'http://localhost:1080/files',
       chunkSize: 100000,
       // Retry delays will enable tus-js-client to automatically retry on errors
       retryDelays: [0, 3000, 5000],
       // Attach additional meta data about the file for the server
       metadata: {
         filename: file.name,
-        filetype: file.type,
+        roomCode: 'MAXI_MICRO', // subdir 1
+        fileType: 'video' // subdir 2
       },
       // Callback for errors which cannot be fixed using retries
       onError: function (error) {
